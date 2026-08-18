@@ -7,3 +7,4 @@ from Basilisk.architecture.messaging.AttRefMsgPayload import *
 from Basilisk.architecture.messaging.TransRefMsgPayload import *
 from Basilisk.architecture.messaging.SpicePlanetStateMsgPayload import *
 from Basilisk.architecture.messaging.EpochMsgPayload import *
+from Basilisk.architecture.messaging.AtmoPropsMsgPayload import *

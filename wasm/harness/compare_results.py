@@ -78,16 +78,42 @@ def cmp_orbit(w, n):
     return rows
 
 
+def cmp_drag(w, n):
+    rows = []
+    tw, tn = w["t"], n["t"]
+    if tw != tn:
+        rows.append(("time grids identical", 1.0))
+        print(f"  !! time grids differ: wasm {len(tw)} pts vs native {len(tn)} pts",
+              file=sys.stderr)
+        common = min(len(tw), len(tn))
+    else:
+        common = len(tw)
+    rows.append(("samples", 0.0))
+    rows.append(("deorbit_time_h",
+                 rel(w["metrics"]["deorbit_time_h"], n["metrics"]["deorbit_time_h"])))
+    rows.append(("capped flag equal",
+                 0.0 if w["metrics"]["capped"] == n["metrics"]["capped"] else 1.0))
+    rows.append(("final_alt_km",
+                 rel(w["metrics"]["final_alt_km"], n["metrics"]["final_alt_km"])))
+    max_r = max(vec_rel(w["r"][i], n["r"][i]) for i in range(common))
+    max_v = max(vec_rel(w["v"][i], n["v"][i]) for i in range(common))
+    rows.append((f"max |Δr|/|r| over {common} samples", max_r))
+    rows.append((f"max |Δv|/|v| over {common} samples", max_v))
+    rows.append(("final-sample |Δr|/|r|", vec_rel(w["r"][common - 1], n["r"][common - 1])))
+    rows.append(("final-sample |Δv|/|v|", vec_rel(w["v"][common - 1], n["v"][common - 1])))
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("wasm")
     ap.add_argument("native")
-    ap.add_argument("--kind", choices=["utils", "orbit"], default="orbit")
+    ap.add_argument("--kind", choices=["utils", "orbit", "drag"], default="orbit")
     ap.add_argument("--tol", type=float, default=1e-9)
     args = ap.parse_args()
 
     w, n = load(args.wasm), load(args.native)
-    rows = cmp_utils(w, n) if args.kind == "utils" else cmp_orbit(w, n)
+    rows = {"utils": cmp_utils, "orbit": cmp_orbit, "drag": cmp_drag}[args.kind](w, n)
 
     width = max(len(r[0]) for r in rows) + 2
     print(f"{'quantity':<{width}} relative error")

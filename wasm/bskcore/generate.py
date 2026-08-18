@@ -41,6 +41,9 @@ COPY_DIRS = [
     "simulation/dynamics/spacecraft",
     "simulation/dynamics/gravityEffector",
     "simulation/dynamics/reactionWheels",
+    "simulation/dynamics/dragEffector",
+    "simulation/environment/_GeneralModuleFiles",
+    "simulation/environment/ExponentialAtmosphere",
     "fswAlgorithms/fswUtilities",
 ]
 COPY_SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".i", ".ih", ".swg", ".in", ".py"}
@@ -55,6 +58,7 @@ PAYLOADS = [
     "TransRefMsgPayload",
     "SpicePlanetStateMsgPayload",
     "EpochMsgPayload",
+    "AtmoPropsMsgPayload",
 ]
 
 # ----------------------------------------------------------------------------
@@ -94,6 +98,13 @@ SPACECRAFT_SRC = DYN_CORE + [
     "simulation/dynamics/_GeneralModuleFiles/svIntegratorRK4.cpp",
     "simulation/dynamics/_GeneralModuleFiles/hubEffector.cpp",
     "simulation/dynamics/spacecraft/spacecraft.cpp",
+]
+ATMO_SRC = ARCH_CORE + C_UTILS + [
+    "simulation/environment/_GeneralModuleFiles/atmosphereBase.cpp",
+    "simulation/environment/ExponentialAtmosphere/exponentialAtmosphere.cpp",
+]
+DRAG_SRC = DYN_CORE + [
+    "simulation/dynamics/dragEffector/dragDynamicEffector.cpp",
 ]
 
 # ----------------------------------------------------------------------------
@@ -138,6 +149,11 @@ MODULES = [
      "simulation/dynamics/gravityEffector/gravityEffector.i", DYN_CORE, False),
     ("Basilisk.simulation._spacecraft",
      "simulation/dynamics/spacecraft/spacecraft.i", SPACECRAFT_SRC, False),
+    ("Basilisk.simulation._exponentialAtmosphere",
+     "simulation/environment/ExponentialAtmosphere/exponentialAtmosphere.i",
+     ATMO_SRC, False),
+    ("Basilisk.simulation._dragDynamicEffector",
+     "simulation/dynamics/dragEffector/dragDynamicEffector.i", DRAG_SRC, False),
 ] + [
     (f"Basilisk.architecture.messaging._{p}",
      f"AUTOSOURCE/{p}.i", ARCH_CORE, True)

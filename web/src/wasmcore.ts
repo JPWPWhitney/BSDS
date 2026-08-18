@@ -7,7 +7,7 @@ export interface TemplateEntry {
 }
 
 /** Scenarios whose full dependency closure exists in the bskcore wheel. */
-export const WASM_TEMPLATE_IDS = ["basic_orbit", "hohmann"];
+export const WASM_TEMPLATE_IDS = ["basic_orbit", "hohmann", "drag_deorbit"];
 
 export function filterWasmTemplates(entries: TemplateEntry[]): TemplateEntry[] {
   return entries.filter((t) => WASM_TEMPLATE_IDS.includes(t.id));
