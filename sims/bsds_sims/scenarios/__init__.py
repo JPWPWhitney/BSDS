@@ -5,7 +5,7 @@ DESCRIPTION, and run(params) -> RunResult; sweep scenarios add AXES and
 sweep_grid() -> list[param dicts].
 """
 
-from . import asteroid_arrival, attitude_detumble, basic_orbit, drag_deorbit, ground_pointing, hohmann, rendezvous
+from . import asteroid_arrival, attitude_detumble, basic_orbit, drag_deorbit, ground_pointing, halo_orbit, hohmann, rendezvous
 
 SCENARIOS = {
     basic_orbit.ID: basic_orbit,
@@ -15,4 +15,5 @@ SCENARIOS = {
     rendezvous.ID: rendezvous,
     attitude_detumble.ID: attitude_detumble,
     ground_pointing.ID: ground_pointing,
+    halo_orbit.ID: halo_orbit,
 }
