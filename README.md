@@ -5,6 +5,9 @@ BSDS makes real spacecraft mission simulations — powered by
 framework from the AVS Lab at CU Boulder — runnable and watchable from a web
 browser, with nothing to install.
 
+**Live site:** <https://jpwpwhitney.github.io/BSDS/> · **How it all fits
+together:** [ARCHITECTURE.md](ARCHITECTURE.md)
+
 ## Run Basilisk right now (zero install)
 
 | Rail | What you get | Start |
@@ -14,16 +17,18 @@ browser, with nothing to install.
 
 ## The project
 
-The plan is staged (full detail in
-[`docs/superpowers/specs/`](docs/superpowers/specs/)):
+All three planned stages have shipped (design history in
+[`docs/superpowers/specs/`](docs/superpowers/specs/), system description in
+[ARCHITECTURE.md](ARCHITECTURE.md)):
 
-1. **Stage 1 (in progress):** a static **mission player** site — Basilisk
-   scenarios run in CI, and a CesiumJS 3D player replays them with synced
-   telemetry charts and parameter-sweep exploration. Free hosting, no accounts.
-2. **Stage 2:** edit and run real scenario code in the browser against
-   sandboxed server execution.
-3. **Stage 3:** Basilisk compiled to WebAssembly — simulations run fully
-   client-side (feasibility already proven by an empirical spike).
+1. **Stage 1 — mission player:** eight Basilisk scenarios run in CI and a
+   CesiumJS/three.js 3D player replays them with synced telemetry charts and
+   parameter-sweep exploration. Free hosting, no accounts.
+2. **Stage 2 — Mission Lab:** edit and run real scenario code in the browser
+   against sandboxed cloud execution (Modal, no network, hard resource caps).
+3. **Stage 3 — WASM Lab:** a subset of Basilisk cross-compiled to
+   WebAssembly (`bskcore`) — simulations run fully client-side, matching
+   native results to machine precision.
 
 ## Repository layout
 
@@ -31,7 +36,9 @@ The plan is staged (full detail in
 notebooks/       Colab-ready quickstart notebook
 .devcontainer/   GitHub Codespaces workbench definition
 sims/            Python: Basilisk scenarios + BSD1 run-data exporter
-web/             The mission player (Vite + TypeScript + CesiumJS)
+backend/         Mission Lab cloud backend (Modal sandbox execution)
+web/             The site: mission player + both labs (Vite + TypeScript)
+wasm/            Basilisk -> WebAssembly port (bskcore wheel pipeline)
 docs/superpowers Design specs and implementation plans
 ```
 
