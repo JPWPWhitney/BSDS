@@ -10,7 +10,7 @@ import numpy as np
 from Basilisk.simulation import spacecraft
 from Basilisk.utilities import SimulationBaseClass, macros, orbitalMotion, simIncludeGravBody
 
-from ..recording import EARTH_BODY, RunResult, attach_sc_recorder, dedupe_time, pull_sc_channels
+from bsds_sims.recording import EARTH_BODY, RunResult, attach_sc_recorder, dedupe_time, pull_sc_channels
 
 ID = "basic_orbit"
 TITLE = "Basic Orbit"
