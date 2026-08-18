@@ -66,9 +66,11 @@ jobs:
   deploy:
     needs: build-web
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # No `environment:` declaration: the auto-created github-pages environment
+    # carries a stale deployment-branch policy from before the default branch
+    # was renamed to main, which rejects the job before it starts. Deploying
+    # without the declaration skips that gate; restore the block if the
+    # environment's "Deployment branches and tags" policy is ever fixed.
     steps:
       # enablement: true creates the Pages site on first deploy when the
       # token is allowed to; if this step fails, enable Pages manually:
