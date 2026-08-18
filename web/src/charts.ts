@@ -41,6 +41,45 @@ export function altitudeSeries(run: RunData): Series | null {
   return { name: "Altitude", values, unit: "km" };
 }
 
+const RAD_S_TO_RPM = 60 / (2 * Math.PI);
+
+/** One series per reaction wheel, rad/s converted to rpm; null when the
+ * optional `rw_speeds` channel is absent. */
+export function wheelSpeedSeries(run: RunData): Series[] | null {
+  const rw = run.channel("rw_speeds");
+  if (!rw) return null;
+  const n = run.header.n;
+  const series: Series[] = [];
+  for (let c = 0; c < rw.components; c++) {
+    const values = new Float64Array(n);
+    for (let k = 0; k < n; k++) values[k] = rw.at(k, c) * RAD_S_TO_RPM;
+    series.push({ name: `RW${c + 1}`, values, unit: "rpm" });
+  }
+  return series;
+}
+
+/** Optional (n,1) channels charted when present: name -> display rule.
+ * Channels not listed here are ignored (forward compatibility). */
+export const EXTRA_SCALAR_CHARTS: Record<string, { title: string; unit: string; convert: (v: number) => number }> = {
+  separation: { title: "Separation", unit: "km", convert: (v) => v / 1000 },
+  pointing_error: { title: "Pointing error", unit: "deg", convert: (v) => (v * 180) / Math.PI },
+};
+
+/** One converted series per allowlisted scalar channel present in the run,
+ * in allowlist order. */
+export function extraScalarSeries(run: RunData): { title: string; unit: string; values: Float64Array }[] {
+  const out: { title: string; unit: string; values: Float64Array }[] = [];
+  const n = run.header.n;
+  for (const [name, rule] of Object.entries(EXTRA_SCALAR_CHARTS)) {
+    const ch = run.channel(name);
+    if (!ch || ch.components !== 1) continue;
+    const values = new Float64Array(n);
+    for (let k = 0; k < n; k++) values[k] = rule.convert(ch.at(k, 0));
+    out.push({ title: rule.title, unit: rule.unit, values });
+  }
+  return out;
+}
+
 export function formatTimeTick(tS: number, durationS: number): string {
   if (durationS < 3 * 3600) {
     return `${Math.round(tS / 60)}m`;
@@ -193,7 +232,7 @@ function buildChart(spec: ChartSpec, time: Float64Array, timeline: Timeline): { 
     legend.style.cssText = "display:flex;gap:0.8rem;font-size:0.75rem;color:var(--text-dim);margin-bottom:2px;";
     for (const [si, s] of spec.series.entries()) {
       const item = document.createElement("span");
-      item.innerHTML = `<span style="display:inline-block;width:10px;height:2px;background:${SERIES[si]};vertical-align:middle;margin-right:4px;"></span>`;
+      item.innerHTML = `<span style="display:inline-block;width:10px;height:2px;background:${spec.series[si].color};vertical-align:middle;margin-right:4px;"></span>`;
       item.append(s.name);
       legend.appendChild(item);
     }
@@ -231,6 +270,37 @@ export function buildCharts(container: HTMLElement, run: RunData, timeline: Time
           values: Float64Array.from(sigma.component(c)),
           color: SERIES[c],
         })),
+        legend: true,
+      },
+      time,
+      timeline,
+    );
+    container.appendChild(chart.el);
+    disposers.push(chart.dispose);
+  }
+
+  for (const extra of extraScalarSeries(run)) {
+    const chart = buildChart(
+      {
+        title: extra.title,
+        unit: extra.unit,
+        series: [{ name: extra.title, values: extra.values, color: SERIES[0] }],
+        legend: false,
+      },
+      time,
+      timeline,
+    );
+    container.appendChild(chart.el);
+    disposers.push(chart.dispose);
+  }
+
+  const wheels = wheelSpeedSeries(run);
+  if (wheels) {
+    const chart = buildChart(
+      {
+        title: "Wheel speeds",
+        unit: "rpm",
+        series: wheels.map((s, c) => ({ name: s.name, values: s.values, color: SERIES[c % SERIES.length] })),
         legend: true,
       },
       time,
