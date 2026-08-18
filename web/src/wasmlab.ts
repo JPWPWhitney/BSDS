@@ -7,6 +7,8 @@ import { basicSetup, EditorView } from "codemirror";
 import { decodeRun } from "./bsd1";
 import { presentRun, type Presented } from "./present";
 import { createViewer } from "./scene";
+import { initShareControls, loadFromUrl, setEditorCode } from "./share";
+import { friendlyWasmError } from "./sharecore";
 import { filterWasmTemplates, PY_DRIVER, type TemplateEntry } from "./wasmcore";
 
 const WHEELS = [
@@ -81,11 +83,17 @@ async function boot() {
   }
   async function loadTemplate(file: string) {
     const res = await fetch(`./data/${file}`);
-    const code = res.ok ? await res.text() : "# failed to load template";
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: code } });
+    setEditorCode(editor, res.ok ? await res.text() : "# failed to load template");
   }
   select.addEventListener("change", () => void loadTemplate(select.value));
-  if (templates.length) await loadTemplate(templates[0].file);
+
+  const showMessage = (text: string) => {
+    outputText().textContent = text;
+    outputBox().hidden = false;
+  };
+  const loadedFromUrl = await loadFromUrl({ editor, select, showMessage });
+  if (!loadedFromUrl && templates.length) await loadTemplate(templates[0].file);
+  initShareControls({ editor, select, showMessage });
 
   const viewer = createViewer(document.getElementById("cesium-container")!);
   let presented: Presented | null = null;
@@ -137,7 +145,8 @@ async function boot() {
           statusEl().textContent = `simulated in your browser in ${result.elapsed}s`;
         } catch (err) {
           const msg = String(err);
-          outputText().textContent = msg;
+          const friendly = friendlyWasmError(msg);
+          outputText().textContent = friendly ? `${friendly}\n\n${msg}` : msg;
           outputBox().hidden = false;
           statusEl().textContent = "run failed — see output";
         } finally {

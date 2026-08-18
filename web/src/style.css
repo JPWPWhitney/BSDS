@@ -194,10 +194,21 @@ a:hover { text-decoration: underline; }
 }
 #lab-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem;
   border-bottom: 1px solid var(--panel-edge);
 }
+#lab-controls .tool-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#lab-controls .tool-btn:hover { border-color: var(--accent); }
 #lab-controls select {
   flex: 1;
   background: var(--bg);

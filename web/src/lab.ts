@@ -14,6 +14,7 @@ import {
 } from "./labcore";
 import { presentRun, type Presented } from "./present";
 import { createViewer } from "./scene";
+import { initShareControls, loadFromUrl, setEditorCode } from "./share";
 
 interface TemplateEntry {
   id: string;
@@ -64,11 +65,17 @@ async function boot() {
   }
   async function loadTemplate(file: string) {
     const res = await fetch(`./data/${file}`);
-    const code = res.ok ? await res.text() : "# failed to load template";
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: code } });
+    setEditorCode(editor, res.ok ? await res.text() : "# failed to load template");
   }
   select.addEventListener("change", () => void loadTemplate(select.value));
-  if (templates.length) await loadTemplate(templates[0].file);
+
+  const showMessage = (text: string) => {
+    outputText().textContent = text;
+    outputBox().hidden = false;
+  };
+  const loadedFromUrl = await loadFromUrl({ editor, select, showMessage });
+  if (!loadedFromUrl && templates.length) await loadTemplate(templates[0].file);
+  initShareControls({ editor, select, showMessage });
 
   const runBtn = document.getElementById("run-btn") as HTMLButtonElement;
   const passcode = document.getElementById("passcode") as HTMLInputElement;
