@@ -1,0 +1,80 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: ["claude/plugins-install-4d9a00", "main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test-and-simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: sims/pyproject.toml
+      - name: Install Basilisk and the sims package
+        run: pip install -e './sims[test]'
+      - name: Run simulation tests
+        run: pytest sims/tests -q
+      - name: Run scenarios and export site data
+        run: python -m bsds_sims.build --out data
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-data
+          path: data/
+          retention-days: 7
+
+  build-web:
+    needs: test-and-simulate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+      - name: Run web tests
+        run: npm test
+        working-directory: web
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-data
+          path: web/public/data
+      - name: Build site
+        run: npm run build
+        working-directory: web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # enablement: true creates the Pages site on first deploy when the
+      # token is allowed to; if this step fails, enable Pages manually:
+      # repo Settings -> Pages -> Source: "GitHub Actions".
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/deploy-pages@v4
+        id: deployment
