@@ -72,7 +72,8 @@ jobs:
         id: deploy
         run: |
           set -eo pipefail
-          modal deploy backend/bsds_backend/app.py | tee deploy.log
+          # Module mode (-m) because the app uses package-relative imports.
+          (cd backend && modal deploy -m bsds_backend.app) | tee deploy.log
           URL=$(grep -oE 'https://[a-zA-Z0-9._-]+\.modal\.run' deploy.log | head -1)
           if [ -z "$URL" ]; then
             echo "Could not find endpoint URL in modal deploy output" >&2
