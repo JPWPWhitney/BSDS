@@ -71,3 +71,35 @@ def test_hohmann_reaches_target_orbit():
     # Trajectory actually spans LEO to GEO
     assert radius.min() < r1 * 1.02
     assert radius.max() > r2 * 0.99
+
+
+def test_drag_deorbit_high_drag_comes_down():
+    from bsds_sims.scenarios import drag_deorbit
+
+    res = drag_deorbit.run({"ballistic_coeff": 12.5, "alt_km": 250.0})
+    alt_km = res.channels["altitude"][:, 0] / 1e3
+    # Terminates at the 100 km interface, within 10 days
+    assert alt_km[-1] <= 105.0
+    assert res.metrics["deorbit_time_h"] < 10 * 24
+    assert res.metrics["capped"] is False
+    # Apogee trend is downward: last quarter's max well below first quarter's max
+    q = len(alt_km) // 4
+    assert alt_km[-q:].max() < alt_km[:q].max() - 20.0
+
+
+def test_drag_deorbit_low_drag_stays_up():
+    from bsds_sims.scenarios import drag_deorbit
+
+    res = drag_deorbit.run({"ballistic_coeff": 100.0, "alt_km": 400.0, "max_days": 2.0})
+    alt_km = res.channels["altitude"][:, 0] / 1e3
+    assert res.metrics["capped"] is True
+    assert alt_km[-1] > 350.0
+
+
+def test_drag_deorbit_sweep_grid_shape():
+    from bsds_sims.scenarios import drag_deorbit
+
+    grid = drag_deorbit.sweep_grid()
+    assert len(grid) == 16
+    assert {"ballistic_coeff", "alt_km"} <= set(grid[0].keys())
+    assert len(drag_deorbit.AXES) == 2
