@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bsds-sims"
+version = "0.1.0"
+description = "BSDS: Basilisk scenario runners and BSD1 run-data exporter"
+requires-python = ">=3.10"
+dependencies = [
+    "bsk==2.11.1",
+    "numpy",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["bsds_sims*"]
