@@ -33,6 +33,7 @@ import { mrpToDcm } from "./attitude";
 import type { RunData } from "./bsd1";
 import { nearestIndex } from "./bsd1";
 import { SERIES } from "./charts";
+import { moonSpec } from "./moon";
 import { stationFromMetrics } from "./station";
 import type { Timeline } from "./timeline";
 
@@ -193,6 +194,57 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
     });
   }
 
+  // Optional Moon (cislunar runs like halo_orbit): a sampled inertial position
+  // from r_moon_N sized by the bodies[] radius, drawn as a matte gray sphere
+  // with a label and a dim full-duration orbit ring. The gray stays recessive
+  // so the spacecraft's yellow trail remains the hero. Sampled properties
+  // (not per-tick rebuilds) keep the DataSourceDisplay ready and the Viewer
+  // clock alive, same as the spacecraft entities.
+  const moon = moonSpec(run.header);
+  const rMoon = moon ? run.channel("r_moon_N") : null;
+  const hasMoon = moon !== null && rMoon !== null;
+  if (moon && rMoon) {
+    const moonPosition = new SampledPositionProperty(ReferenceFrame.INERTIAL);
+    moonPosition.setInterpolationOptions({
+      interpolationDegree: 5,
+      interpolationAlgorithm: LagrangePolynomialApproximation,
+    });
+    const moonPositions: Cartesian3[] = [];
+    for (let k = 0; k < n; k++) {
+      moonPositions.push(new Cartesian3(rMoon.at(k, 0), rMoon.at(k, 1), rMoon.at(k, 2)));
+    }
+    moonPosition.addSamples(times, moonPositions);
+    const moonGray = Color.fromCssColorString("#9a9da6");
+    viewer.entities.add({
+      id: "moon",
+      availability,
+      position: moonPosition,
+      ellipsoid: {
+        radii: new Cartesian3(moon.radiusM, moon.radiusM, moon.radiusM),
+        // Slight alpha keeps the sphere matte (and skips the depth write that
+        // would occlude the label anchored at its center).
+        material: moonGray.withAlpha(0.9),
+      },
+      label: {
+        text: "Moon",
+        font: "12px system-ui, sans-serif",
+        fillColor: Color.fromCssColorString("#dde4f0"),
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+        style: LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -12),
+      },
+      path: new PathGraphics({
+        material: moonGray.withAlpha(0.35),
+        width: 1,
+        leadTime: timeline.durationS,
+        trailTime: timeline.durationS,
+        resolution: Math.max(10, timeline.durationS / 2000),
+      }),
+    });
+  }
+
   // Body-axes triad: dynamic polylines driven by a CallbackProperty so the
   // geometry is per-frame without rebuilds (rebuilding every tick keeps the
   // DataSourceDisplay un-ready, which freezes the Viewer clock).
@@ -306,6 +358,7 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
     dispose() {
       viewer.entities.removeById("spacecraft");
       if (hasSecond) viewer.entities.removeById("spacecraft-2");
+      if (hasMoon) viewer.entities.removeById("moon");
       for (const id of stationIds) viewer.entities.removeById(id);
       for (const ent of triadEntities) viewer.entities.remove(ent);
     },
