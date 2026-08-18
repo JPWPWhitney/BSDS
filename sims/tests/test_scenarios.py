@@ -37,3 +37,37 @@ def test_basic_orbit_runs_and_is_sane():
 
     assert res.epoch == "2026-01-01T00:00:00Z"
     assert res.bodies[0]["name"] == "earth"
+
+
+def test_hohmann_reaches_target_orbit():
+    from bsds_sims.scenarios import hohmann
+
+    res = hohmann.run({})
+    r = res.channels["r_BN_N"]
+    v = res.channels["v_BN_N"]
+    radius = np.linalg.norm(r, axis=1)
+
+    r1 = 6878.137e3
+    r2 = 42164.0e3
+
+    # Final state: circular-ish orbit at the target radius
+    r_f, v_f = r[-1], v[-1]
+    rf = np.linalg.norm(r_f)
+    assert rf == pytest.approx(r2, rel=0.01)
+    # eccentricity from state vector
+    h = np.cross(r_f, v_f)
+    e_vec = np.cross(v_f, h) / MU_EARTH - r_f / rf
+    assert np.linalg.norm(e_vec) < 0.02
+
+    # Metrics match analytic Hohmann
+    at = (r1 + r2) / 2
+    dv1 = np.sqrt(MU_EARTH * (2 / r1 - 1 / at)) - np.sqrt(MU_EARTH / r1)
+    dv2 = np.sqrt(MU_EARTH / r2) - np.sqrt(MU_EARTH * (2 / r2 - 1 / at))
+    assert res.metrics["dv1_ms"] == pytest.approx(dv1, rel=0.01)
+    assert res.metrics["dv2_ms"] == pytest.approx(dv2, rel=0.01)
+    assert res.metrics["dv_total_ms"] == pytest.approx(dv1 + dv2, rel=0.01)
+    assert res.metrics["transfer_time_h"] == pytest.approx(np.pi * np.sqrt(at**3 / MU_EARTH) / 3600.0, rel=0.01)
+
+    # Trajectory actually spans LEO to GEO
+    assert radius.min() < r1 * 1.02
+    assert radius.max() > r2 * 0.99
