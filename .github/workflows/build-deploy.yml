@@ -24,10 +24,14 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: sims/pyproject.toml
-      - name: Install Basilisk and the sims package
-        run: pip install -e './sims[test]'
+      - name: Install Basilisk, sims, and backend packages
+        run: |
+          pip install -e './sims[test]'
+          pip install -e './backend[test]'
       - name: Run simulation tests
         run: pytest sims/tests -q
+      - name: Run backend tests
+        run: pytest backend/tests -q
       - name: Run scenarios and export site data
         run: python -m bsds_sims.build --out data
       - uses: actions/upload-artifact@v4
@@ -36,8 +40,53 @@ jobs:
           path: data/
           retention-days: 7
 
-  build-web:
+  # Deploys the Mission Lab backend to Modal when the owner's secrets exist;
+  # otherwise every step no-ops and the endpoint output stays empty, which the
+  # site turns into the "backend not deployed yet" state (spec S2-D6).
+  deploy-backend:
     needs: test-and-simulate
+    runs-on: ubuntu-latest
+    env:
+      HAS_MODAL: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      BSDS_RUN_PASSCODE: ${{ secrets.BSDS_RUN_PASSCODE }}
+    outputs:
+      endpoint: ${{ steps.deploy.outputs.endpoint }}
+      gated: ${{ steps.deploy.outputs.gated }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_MODAL == 'true'
+      - uses: actions/setup-python@v5
+        if: env.HAS_MODAL == 'true'
+        with:
+          python-version: "3.12"
+      - name: Install Modal
+        if: env.HAS_MODAL == 'true'
+        run: pip install modal
+      - name: Sync the gate secret to Modal
+        if: env.HAS_MODAL == 'true'
+        run: modal secret create bsds-run-gate BSDS_RUN_PASSCODE="$BSDS_RUN_PASSCODE" --force
+      - name: Deploy backend and capture endpoint
+        if: env.HAS_MODAL == 'true'
+        id: deploy
+        run: |
+          set -eo pipefail
+          modal deploy backend/bsds_backend/app.py | tee deploy.log
+          URL=$(grep -oE 'https://[a-zA-Z0-9._-]+\.modal\.run' deploy.log | head -1)
+          if [ -z "$URL" ]; then
+            echo "Could not find endpoint URL in modal deploy output" >&2
+            exit 1
+          fi
+          echo "endpoint=$URL" >> "$GITHUB_OUTPUT"
+          if [ -n "$BSDS_RUN_PASSCODE" ]; then
+            echo "gated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-web:
+    needs: [test-and-simulate, deploy-backend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +105,17 @@ jobs:
         with:
           name: site-data
           path: web/public/data
+      - name: Write lab-config.json
+        env:
+          ENDPOINT: ${{ needs.deploy-backend.outputs.endpoint }}
+          GATED: ${{ needs.deploy-backend.outputs.gated }}
+        run: |
+          if [ -n "$ENDPOINT" ]; then
+            printf '{"endpoint": "%s", "gated": %s}\n' "$ENDPOINT" "${GATED:-false}" > web/public/data/lab-config.json
+          else
+            printf '{"endpoint": null, "gated": false}\n' > web/public/data/lab-config.json
+          fi
+          cat web/public/data/lab-config.json
       - name: Build site
         run: npm run build
         working-directory: web
