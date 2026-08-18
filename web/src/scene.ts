@@ -6,11 +6,13 @@
 import {
   ArcType,
   buildModuleUrl,
+  Cartesian2,
   Cartesian3,
   Color,
   CallbackProperty,
   ImageryLayer,
   JulianDate,
+  LabelStyle,
   LagrangePolynomialApproximation,
   Matrix3,
   Matrix4,
@@ -21,6 +23,7 @@ import {
   TimeInterval,
   TimeIntervalCollection,
   Transforms,
+  VerticalOrigin,
   Viewer,
   type Entity,
 } from "cesium";
@@ -30,6 +33,7 @@ import { mrpToDcm } from "./attitude";
 import type { RunData } from "./bsd1";
 import { nearestIndex } from "./bsd1";
 import { SERIES } from "./charts";
+import { stationFromMetrics } from "./station";
 import type { Timeline } from "./timeline";
 
 export function createViewer(container: HTMLElement): Viewer {
@@ -183,6 +187,60 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
     }
   }
 
+  // Optional ground station from header metrics: a labeled fixed-frame marker
+  // plus a station->spacecraft line. The line is a CallbackProperty (like the
+  // triad) — replacing positions per tick would keep the DataSourceDisplay
+  // un-ready and freeze the Viewer clock.
+  const station = stationFromMetrics(run.header.metrics);
+  const stationIds: string[] = [];
+  if (station) {
+    const stationPos = Cartesian3.fromDegrees(station.lonDeg, station.latDeg, 1600);
+    viewer.entities.add({
+      id: "ground-station",
+      position: stationPos,
+      point: {
+        pixelSize: 7,
+        color: Color.fromCssColorString("#5aa9ff"),
+        outlineColor: Color.BLACK,
+        outlineWidth: 1,
+      },
+      label: {
+        text: station.name,
+        font: "12px system-ui, sans-serif",
+        fillColor: Color.fromCssColorString("#dde4f0"),
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+        style: LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -10),
+      },
+    });
+    stationIds.push("ground-station");
+
+    const linkIcrfToFixed = new Matrix3();
+    const linkPositions = (time: JulianDate | undefined): Cartesian3[] => {
+      if (!time) return [];
+      const fixedFrame = Transforms.computeIcrfToFixedMatrix(time, linkIcrfToFixed);
+      if (!fixedFrame) return []; // Earth-orientation data not ready this frame
+      const tSim = JulianDate.secondsDifference(time, timeline.epoch);
+      const k = nearestIndex(run.time, tSim);
+      const posInertial = new Cartesian3(r.at(k, 0), r.at(k, 1), r.at(k, 2));
+      const posFixed = Matrix3.multiplyByVector(fixedFrame, posInertial, new Cartesian3());
+      return [stationPos, posFixed];
+    };
+    viewer.entities.add({
+      id: "station-link",
+      availability,
+      polyline: {
+        positions: new CallbackProperty((time) => linkPositions(time as JulianDate), false),
+        width: 1.5,
+        material: Color.fromCssColorString("#5aa9ff").withAlpha(0.65),
+        arcType: ArcType.NONE,
+      },
+    });
+    stationIds.push("station-link");
+  }
+
   // Frame the whole orbit, then release the camera lock for free navigation.
   let maxRadius = 0;
   for (let k = 0; k < n; k++) {
@@ -198,6 +256,7 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
     dispose() {
       viewer.entities.removeById("spacecraft");
       if (hasSecond) viewer.entities.removeById("spacecraft-2");
+      for (const id of stationIds) viewer.entities.removeById(id);
       for (const ent of triadEntities) viewer.entities.remove(ent);
     },
   };
