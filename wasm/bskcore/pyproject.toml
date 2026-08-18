@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=64", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bskcore"
+version = "2.11.1"
+description = "Basilisk astrodynamics core (spacecraft + gravity + RK4 + messaging) cross-compiled to wasm32 for Pyodide"
+requires-python = ">=3.13"
+dependencies = ["numpy"]
+
+[tool.setuptools]
+include-package-data = false

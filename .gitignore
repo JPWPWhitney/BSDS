@@ -16,3 +16,5 @@ web/public/data/
 # Editors / OS
 .vscode/
 .DS_Store
+web/public/pyodide/
+web/public/wasm/

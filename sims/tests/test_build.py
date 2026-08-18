@@ -59,3 +59,12 @@ def test_build_exports_lab_templates(tmp_path):
     assert "basic_orbit" in ids and "drag_deorbit" in ids
     src = (out / "templates" / "basic_orbit.py").read_text()
     assert "def run(" in src and "from bsds_sims.recording import" in src
+
+
+def test_build_exports_wasm_pylib(tmp_path):
+    out = tmp_path / "data"
+    build_site_data(out, only_scenario="basic_orbit")
+    pylib = out / "pylib" / "bsds_sims"
+    for name in ("__init__.py", "bsd1.py", "recording.py"):
+        assert (pylib / name).exists()
+    assert "BSDS0001" in (pylib / "bsd1.py").read_text()

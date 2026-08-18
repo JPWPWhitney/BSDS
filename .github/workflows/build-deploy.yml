@@ -105,6 +105,15 @@ jobs:
         with:
           name: site-data
           path: web/public/data
+      - name: Stage the self-hosted WASM runtime and wheels
+        run: |
+          npm i --no-save pyodide@0.29.4
+          mkdir -p web/public/pyodide web/public/wasm
+          cp node_modules/pyodide/pyodide.mjs node_modules/pyodide/pyodide.js \
+             node_modules/pyodide/pyodide.asm.js node_modules/pyodide/pyodide.asm.wasm \
+             node_modules/pyodide/python_stdlib.zip node_modules/pyodide/pyodide-lock.json \
+             web/public/pyodide/
+          cp wasm/wheels/*.whl web/public/wasm/
       - name: Write lab-config.json
         env:
           ENDPOINT: ${{ needs.deploy-backend.outputs.endpoint }}

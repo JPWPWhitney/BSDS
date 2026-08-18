@@ -151,6 +151,13 @@ def _export_templates(out: Path) -> None:
         (tdir / f"{scenario_id}.py").write_text(src.read_text())
         entries.append({"id": scenario_id, "title": mod.TITLE, "file": f"templates/{scenario_id}.py"})
     (out / "templates.json").write_text(json.dumps({"schema": 1, "templates": entries}, indent=1))
+    # Pure-python runtime sources for the in-browser (WASM) lab: enough of
+    # bsds_sims to run scenario code and export BSD1 inside Pyodide.
+    pylib = out / "pylib" / "bsds_sims"
+    pylib.mkdir(parents=True, exist_ok=True)
+    pkg_root = Path(__file__).resolve().parent
+    for name in ("__init__.py", "bsd1.py", "recording.py"):
+        (pylib / name).write_text((pkg_root / name).read_text())
 
 
 def main(argv: list[str] | None = None) -> int:

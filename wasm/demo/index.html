@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bskcore — Basilisk in the browser</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 900px;
+         background: #0b1020; color: #dfe6f3; }
+  h1 { font-size: 1.3rem; } code { color: #8fd3ff; }
+  #status { color: #ffd479; margin: 0.75rem 0; white-space: pre-line; }
+  canvas { background: #111832; border: 1px solid #2a3550; border-radius: 6px; }
+  table { border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+  td, th { border: 1px solid #2a3550; padding: 4px 10px; text-align: right; }
+</style>
+</head>
+<body>
+<h1>bskcore: Basilisk spacecraft simulation compiled to WebAssembly</h1>
+<p>Runs the BSDS <code>basic_orbit</code> scenario (spacecraft + point-mass Earth
+gravity + RK4 + message recorder) entirely in your browser via Pyodide.
+Serve this directory (<code>./serve.sh</code>) so the wheel can be fetched.</p>
+<div id="status">loading Pyodide…</div>
+<canvas id="plot" width="860" height="320"></canvas>
+<div id="metrics"></div>
+
+<script type="module">
+const statusEl = document.getElementById("status");
+const log = (m) => { statusEl.textContent = m; console.log(m); };
+
+const PYODIDE_VERSION = "0.29.4";
+const { loadPyodide } = await import(
+  `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.mjs`);
+
+const t0 = performance.now();
+const pyodide = await loadPyodide();
+log(`Pyodide ${pyodide.version} booted in ${(performance.now()-t0)|0} ms — loading numpy…`);
+await pyodide.loadPackage("numpy");
+
+log("fetching bskcore wheel…");
+const wheelName = new URL(document.location).searchParams.get("wheel")
+  ?? "bskcore-2.11.1-cp313-cp313-pyemscripten_2025_0_wasm32.whl";
+const resp = await fetch(wheelName);
+if (!resp.ok) { log(`could not fetch ${wheelName}: HTTP ${resp.status}`); throw new Error("wheel fetch failed"); }
+const buf = new Uint8Array(await resp.arrayBuffer());
+pyodide.unpackArchive(buf, "wheel");
+log(`wheel installed (${(buf.length/1e6).toFixed(2)} MB) — running basic_orbit…`);
+
+const scenario = `
+import json
+import numpy as np
+from Basilisk.simulation import spacecraft
+from Basilisk.utilities import SimulationBaseClass, macros, orbitalMotion, simIncludeGravBody
+
+scSim = SimulationBaseClass.SimBaseClass()
+proc = scSim.CreateNewProcess("dynamicsProcess")
+proc.addTask(scSim.CreateNewTask("dynamicsTask", macros.sec2nano(10.0)))
+sc = spacecraft.Spacecraft(); sc.ModelTag = "bsds-sat"
+scSim.AddModelToTask("dynamicsTask", sc)
+gf = simIncludeGravBody.gravBodyFactory()
+earth = gf.createEarth(); earth.isCentralBody = True
+gf.addBodiesTo(sc)
+oe = orbitalMotion.ClassicElements()
+oe.a = 6878136.6; oe.e = 0.01; oe.i = 51.6*macros.D2R
+oe.Omega = 48.2*macros.D2R; oe.omega = 347.8*macros.D2R; oe.f = 0.0
+rN, vN = orbitalMotion.elem2rv(earth.mu, oe)
+sc.hub.r_CN_NInit = rN; sc.hub.v_CN_NInit = vN
+period = 2*np.pi*np.sqrt(oe.a**3/earth.mu)
+rec = sc.scStateOutMsg.recorder(macros.sec2nano(5.0))
+scSim.AddModelToTask("dynamicsTask", rec)
+scSim.InitializeSimulation()
+scSim.ConfigureStopTime(macros.sec2nano(1.05*period))
+scSim.ExecuteSimulation()
+t = np.asarray(rec.times())*macros.NANO2SEC
+r = np.asarray(rec.r_BN_N)
+keep = np.ones(len(t), bool); keep[:-1] = np.diff(t) > 0
+t, r = t[keep], r[keep]
+alt = np.linalg.norm(r, axis=1)/1e3 - 6378.1366
+json.dumps({"t": t.tolist(), "alt": alt.tolist(), "period_min": period/60.0})
+`;
+
+const tRun = performance.now();
+const result = JSON.parse(await pyodide.runPythonAsync(scenario));
+const simMs = (performance.now() - tRun) | 0;
+log(`done: ${result.t.length} samples, sim wall time ${simMs} ms, total ${(performance.now()-t0)|0} ms`);
+
+// --- plot altitude vs time -------------------------------------------------
+const cv = document.getElementById("plot"), ctx = cv.getContext("2d");
+const { t, alt } = result;
+const [tMin, tMax] = [Math.min(...t), Math.max(...t)];
+const [aMin, aMax] = [Math.min(...alt), Math.max(...alt)];
+const px = (x) => 50 + (x - tMin) / (tMax - tMin) * (cv.width - 70);
+const py = (y) => cv.height - 30 - (y - aMin) / (aMax - aMin) * (cv.height - 55);
+ctx.strokeStyle = "#2a3550"; ctx.strokeRect(50, 15, cv.width - 70, cv.height - 45);
+ctx.fillStyle = "#9fb2d8"; ctx.font = "12px system-ui";
+ctx.fillText("altitude (km) vs time (min)", 55, 12);
+ctx.fillText(aMax.toFixed(1), 4, py(aMax) + 4);
+ctx.fillText(aMin.toFixed(1), 4, py(aMin) + 4);
+ctx.fillText((tMax / 60).toFixed(0) + " min", cv.width - 70, cv.height - 8);
+ctx.strokeStyle = "#8fd3ff"; ctx.lineWidth = 1.5; ctx.beginPath();
+t.forEach((x, i) => i ? ctx.lineTo(px(x), py(alt[i])) : ctx.moveTo(px(x), py(alt[i])));
+ctx.stroke();
+
+document.getElementById("metrics").innerHTML = `
+<table><tr><th>metric</th><th>value</th></tr>
+<tr><td>orbital period</td><td>${result.period_min.toFixed(2)} min</td></tr>
+<tr><td>altitude range</td><td>${aMin.toFixed(1)} – ${aMax.toFixed(1)} km</td></tr>
+<tr><td>samples</td><td>${t.length}</td></tr>
+<tr><td>sim wall time</td><td>${simMs} ms</td></tr></table>`;
+</script>
+</body>
+</html>

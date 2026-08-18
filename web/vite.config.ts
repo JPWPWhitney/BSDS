@@ -15,6 +15,7 @@ export default defineConfig({
         index: resolve(__dirname, "index.html"),
         player: resolve(__dirname, "player.html"),
         lab: resolve(__dirname, "lab.html"),
+        wasm: resolve(__dirname, "wasm.html"),
       },
     },
   },

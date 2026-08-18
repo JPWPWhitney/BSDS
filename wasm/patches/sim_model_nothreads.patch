@@ -1,0 +1,125 @@
+--- a/architecture/system_model/sim_model.cpp	2026-08-18 10:13:19.496326576 +0000
++++ b/architecture/system_model/sim_model.cpp	2026-08-18 10:13:47.723784223 +0000
+@@ -20,6 +20,17 @@
+ #include "sim_model.h"
+ #include <iostream>
+ 
++/* BSDS wasm port: Pyodide forbids spawning pthreads (std::thread compiles but
++   aborts at runtime). Under BSK_NO_THREADS every SimThreadExecution is driven
++   inline on the calling thread, reusing the exact same StepUntilStop /
++   SingleStepProcesses / selfInitProcesses / resetProcesses logic, so the
++   numerical stepping order is identical to the single-threaded native build. */
++#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
++#ifndef BSK_NO_THREADS
++#define BSK_NO_THREADS 1
++#endif
++#endif
++
+ void activateNewThread(void *threadData)
+ {
+ 
+@@ -264,21 +275,28 @@
+     {
+         simThread->stopThreadNanos = SimStopTime;
+         simThread->stopThreadPriority = stopPri;
++#ifndef BSK_NO_THREADS
+         if(simThread->procCount() > 0) {
+             simThread->unlockThread();
+         }
++#endif
+     }
+     this->NextTaskTime = (uint64_t) ~0;
+     this->CurrentNanos = (uint64_t) ~0;
+     for(auto const& simThread : this->threadList)
+     {
+         if(simThread->procCount() > 0) {
++#ifdef BSK_NO_THREADS
++            /* run this thread's frame inline; exceptions propagate directly */
++            simThread->StepUntilStop();
++#else
+             simThread->lockParent();
+ 
+             // Check if any thread had an exception and re-throw it
+             if(simThread->threadException) {
+                 std::rethrow_exception(simThread->threadException);
+             }
++#endif
+ 
+             this->NextTaskTime = simThread->NextTaskTime < this->NextTaskTime ?
+                                  simThread->NextTaskTime : this->NextTaskTime;
+@@ -315,6 +333,12 @@
+  */
+ void SimModel::selfInitSimulation()
+ {
++#ifdef BSK_NO_THREADS
++    for(auto const& simThread : this->threadList)
++    {
++        simThread->selfInitProcesses();
++    }
++#else
+     for(auto const& simThread : this->threadList)
+     {
+         simThread->selfInitNow = true;
+@@ -328,6 +352,7 @@
+             std::rethrow_exception(simThread->threadException);
+         }
+     }
++#endif
+     this->NextTaskTime = 0;
+     this->CurrentNanos = 0;
+ 
+@@ -341,6 +366,12 @@
+ {
+ 
+ 
++#ifdef BSK_NO_THREADS
++    for(auto const& simThread : this->threadList)
++    {
++        simThread->resetProcesses();
++    }
++#else
+     for(auto const& simThread : this->threadList)
+     {
+         simThread->resetNow = true;
+@@ -355,6 +386,7 @@
+             std::rethrow_exception(simThread->threadException);
+         }
+     }
++#endif
+ }
+ 
+ /*! This method steps all of the processes forward to the current time.  It also
+@@ -464,11 +496,13 @@
+     for(auto const& simThread : this->threadList)
+     {
+         simThread->killThread();
++#ifndef BSK_NO_THREADS
+         simThread->unlockThread();
+         if(simThread->threadContext && simThread->threadContext->joinable()) {
+             simThread->threadContext->join();
+             delete simThread->threadContext;
+         }
++#endif
+         delete simThread;
+     }
+     this->threadList.clear();
+@@ -504,13 +538,19 @@
+         simThread->nextProcPriority = (*it)->processPriority;
+         simThread->NextTaskTime = 0;
+         simThread->CurrentNanos = 0;
++#ifdef BSK_NO_THREADS
++        simThread->threadReady();
++#else
+         //simThread->lockThread();
+         simThread->threadContext = new std::thread(activateNewThread, simThread);
++#endif
+     }
++#ifndef BSK_NO_THREADS
+     for(auto const& simThread : this->threadList)
+     {
+         simThread->waitOnInit();
+     }
++#endif
+ }
+ 
+ /*! This method allows the user to specifically place a given process onto a

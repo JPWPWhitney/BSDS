@@ -30,6 +30,11 @@ async function boot() {
     lab.href = "./lab.html";
     lab.innerHTML = `<h2>Mission Lab</h2><p>Write your own scenario in real Basilisk Python and fly it in an isolated sandbox.</p><span class="kind">edit &amp; run</span>`;
     container.appendChild(lab);
+    const wasm = document.createElement("a");
+    wasm.className = "card";
+    wasm.href = "./wasm.html";
+    wasm.innerHTML = `<h2>WASM Lab</h2><p>Basilisk compiled to WebAssembly — write and fly missions entirely inside your browser, no servers at all.</p><span class="kind">runs in your browser</span>`;
+    container.appendChild(wasm);
   } catch (err) {
     container.innerHTML = `<div class="error-banner">Mission data failed to load: ${String(err)}</div>`;
   }

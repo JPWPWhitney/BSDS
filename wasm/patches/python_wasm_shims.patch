@@ -1,0 +1,137 @@
+diff -ruN a/utilities/SimulationBaseClass.py b/utilities/SimulationBaseClass.py
+--- a/utilities/SimulationBaseClass.py	2026-08-18 10:17:50.897665913 +0000
++++ b/utilities/SimulationBaseClass.py	2026-08-18 10:17:50.930903090 +0000
+@@ -28,10 +28,21 @@
+ from collections import OrderedDict
+ from typing import Literal
+ 
+-import matplotlib.pyplot as plt
+ import numpy as np
+-from matplotlib.patches import FancyArrowPatch
+-from Basilisk.architecture import alg_contain, bskLogging, sim_model
++
++# bskcore (wasm) build: matplotlib and the C-module container are not shipped.
++# Both are only needed by optional visualization / C-FSW paths.
++try:
++    import matplotlib.pyplot as plt
++    from matplotlib.patches import FancyArrowPatch
++except ImportError:  # pragma: no cover - wasm build
++    plt = None
++    FancyArrowPatch = None
++try:
++    from Basilisk.architecture import alg_contain
++except ImportError:  # pragma: no cover - wasm build
++    alg_contain = None
++from Basilisk.architecture import bskLogging, sim_model
+ from Basilisk.utilities import deprecated, simulationArchTypes
+ from Basilisk.utilities.pythonVariableLogger import PythonVariableLogger
+ from Basilisk.utilities.simulationProgessBar import SimulationProgressBar
+diff -ruN a/utilities/simHelpers.py b/utilities/simHelpers.py
+--- a/utilities/simHelpers.py	2026-08-18 10:29:37.799549532 +0000
++++ b/utilities/simHelpers.py	2026-08-18 10:29:37.813493040 +0000
+@@ -36,8 +36,23 @@
+ from Basilisk import __path__
+ from Basilisk.architecture import messaging
+ from Basilisk.architecture import bskUtilities
+-from Basilisk.topLevelModules import pyswice
+-from Basilisk.utilities.supportDataTools.dataFetcher import get_path, DataFile
++# bskcore (wasm) build: SPICE and the pooch data fetcher are not shipped.
++# Helpers that need them raise ImportError only when actually called.
++try:
++    from Basilisk.topLevelModules import pyswice
++except ImportError:  # pragma: no cover - wasm build
++    pyswice = None
++try:
++    from Basilisk.utilities.supportDataTools.dataFetcher import get_path, DataFile
++except ImportError:  # pragma: no cover - wasm build
++    def get_path(*args, **kwargs):
++        raise ImportError("dataFetcher is not part of the bskcore wasm build")
++
++    class DataFile:
++        class EphemerisData:
++            def __getattr__(self, name):
++                return None
++        EphemerisData = EphemerisData()
+ 
+ bskPath = __path__[0]
+ _matplotlibDefaultsApplied = False
+diff -ruN a/utilities/simIncludeGravBody.py b/utilities/simIncludeGravBody.py
+--- a/utilities/simIncludeGravBody.py	2026-08-18 10:17:50.909977737 +0000
++++ b/utilities/simIncludeGravBody.py	2026-08-18 10:17:50.931338687 +0000
+@@ -31,7 +31,19 @@
+ from Basilisk.architecture import messaging
+ from Basilisk.architecture import astroConstants
+ from Basilisk.simulation import gravityEffector
+-from Basilisk.simulation import spiceInterface
++try:
++    from Basilisk.simulation import spiceInterface
++except ImportError:  # pragma: no cover - wasm build without SPICE
++    class _SpiceInterfaceUnavailable:
++        """Placeholder so annotations resolve; raises only when actually used."""
++        def __getattr__(self, name):
++            class _Missing:
++                def __init__(self, *a, **k):
++                    raise ImportError(
++                        "spiceInterface is not part of the bskcore wasm build")
++            _Missing.__name__ = name
++            return _Missing
++    spiceInterface = _SpiceInterfaceUnavailable()
+ from Basilisk.simulation.gravityEffector import (
+     loadGravFromFile as loadGravFromFile_python,
+ )
+@@ -41,7 +53,24 @@
+ from Basilisk.utilities import simHelpers
+ 
+ from Basilisk.utilities.deprecated import deprecationWarn
+-from Basilisk.utilities.supportDataTools.dataFetcher import get_path, DataFile, POOCH
++try:
++    from Basilisk.utilities.supportDataTools.dataFetcher import get_path, DataFile, POOCH
++except ImportError:  # pragma: no cover - wasm build without pooch/network
++    POOCH = None
++
++    def get_path(*args, **kwargs):
++        raise ImportError("dataFetcher is not part of the bskcore wasm build")
++
++    class DataFile:
++        """Placeholder namespace; only referenced in SPICE default arguments."""
++        class EphemerisData:
++            def __getattr__(self, name):
++                return None
++        EphemerisData = EphemerisData()
++        class GravityData:
++            def __getattr__(self, name):
++                return None
++        GravityData = GravityData()
+ 
+ # this statement is needed to enable Windows to print ANSI codes in the Terminal
+ # see https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python/3332860#3332860
+diff -ruN a/utilities/simulationProgessBar.py b/utilities/simulationProgessBar.py
+--- a/utilities/simulationProgessBar.py	2026-08-18 10:17:50.906064273 +0000
++++ b/utilities/simulationProgessBar.py	2026-08-18 10:17:50.931144742 +0000
+@@ -1,5 +1,24 @@
+-from colorama import Fore
+-from tqdm import tqdm
++# bskcore (wasm) build: colorama/tqdm may be absent; fall back to a no-op bar.
++try:
++    from colorama import Fore
++    from tqdm import tqdm
++except ImportError:  # pragma: no cover - wasm build
++    class Fore:
++        YELLOW = ""
++        RESET = ""
++
++    class tqdm:
++        def __init__(self, *args, **kwargs):
++            pass
++
++        def update(self, *args, **kwargs):
++            pass
++
++        def close(self):
++            pass
++
++        def refresh(self):
++            pass
+ 
+ 
+ class SimulationProgressBar:
