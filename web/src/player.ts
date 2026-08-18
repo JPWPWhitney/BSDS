@@ -117,7 +117,7 @@ async function boot() {
       const mod = await import("./sweep");
       const panel = document.getElementById("sweep-panel")!;
       panel.hidden = false;
-      mod.initSweep(panel, manifest, (runId: string) => void player.load(runId));
+      mod.initSweep(panel, manifest, (runId: string) => void player.load(runId), requestedRun);
     } catch {
       /* sweep module not present yet */
     }
