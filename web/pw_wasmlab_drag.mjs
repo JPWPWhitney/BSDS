@@ -29,8 +29,9 @@ try {
   console.log("TEMPLATE: Drag Deorbit loaded into editor");
 
   // 3. run it (default params BC=25, alt=300 -> ~8 days sim, heavier than the
-  //    validation point but still fine in-browser)
-  await page.click("#run-btn");
+  //    validation point but still fine in-browser). The run blocks the main
+  //    thread, so skip Playwright's post-click settling or the click times out.
+  await page.locator("#run-btn").dispatchEvent("click");
   await page.waitForFunction(
     () => {
       const s = document.getElementById("run-status")?.textContent ?? "";
