@@ -2,7 +2,7 @@ name: Build and deploy
 
 on:
   push:
-    branches: ["claude/plugins-install-4d9a00", "main"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:

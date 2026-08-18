@@ -9,7 +9,7 @@ browser, with nothing to install.
 
 | Rail | What you get | Start |
 |---|---|---|
-| **Google Colab** | Full-fidelity Basilisk in a free notebook, running in ~3 minutes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JPWPWhitney/BSDS/blob/claude/plugins-install-4d9a00/notebooks/basilisk_quickstart.ipynb) |
+| **Google Colab** | Full-fidelity Basilisk in a free notebook, running in ~3 minutes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JPWPWhitney/BSDS/blob/main/notebooks/basilisk_quickstart.ipynb) |
 | **GitHub Codespaces** | A persistent browser VS Code workbench with Basilisk preinstalled (terminal, notebooks, real files) — billed to *your* free Codespaces quota (students: free Pro via [GitHub Education](https://education.github.com)) | [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/JPWPWhitney/BSDS) |
 
 ## The project
