@@ -36,7 +36,7 @@ import { SERIES } from "./charts";
 import { stationFromMetrics } from "./station";
 import type { Timeline } from "./timeline";
 
-export function createViewer(container: HTMLElement): Viewer {
+function createCesiumViewer(container: HTMLElement): Viewer {
   const viewer = new Viewer(container, {
     baseLayer: ImageryLayer.fromProviderAsync(
       TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII")),
@@ -55,6 +55,56 @@ export function createViewer(container: HTMLElement): Viewer {
   });
   viewer.scene.globe.enableLighting = true;
   return viewer;
+}
+
+/** Renderer host for one page: owns the container and swaps between the
+ * Cesium viewer (Earth runs) and a plain host element for the three.js
+ * exotic renderer (non-Earth runs). presentRun picks the mode per run;
+ * pages keep calling createViewer(container) exactly as before. */
+export interface PlayerStage {
+  readonly kind: "bsds-stage";
+  readonly container: HTMLElement;
+  /** The live Cesium viewer, or null while the exotic renderer is active. */
+  readonly viewer: Viewer | null;
+  /** Tear down the exotic host (if any) and return a live Cesium viewer. */
+  ensureCesium(): Viewer;
+  /** Tear down the Cesium viewer (if any) and return an empty host element
+   * for the exotic renderer. */
+  ensureExoticHost(): HTMLElement;
+}
+
+export function createViewer(container: HTMLElement): PlayerStage {
+  // Eagerly boot Cesium so pages look exactly as they did before a run (or a
+  // non-Earth run) arrives.
+  let viewer: Viewer | null = createCesiumViewer(container);
+  let exoticHost: HTMLElement | null = null;
+  return {
+    kind: "bsds-stage",
+    container,
+    get viewer() {
+      return viewer;
+    },
+    ensureCesium() {
+      if (exoticHost) {
+        exoticHost.remove();
+        exoticHost = null;
+      }
+      if (!viewer) viewer = createCesiumViewer(container);
+      return viewer;
+    },
+    ensureExoticHost() {
+      if (viewer) {
+        viewer.destroy();
+        viewer = null;
+      }
+      if (!exoticHost) {
+        exoticHost = document.createElement("div");
+        exoticHost.className = "exotic-host";
+        container.appendChild(exoticHost);
+      }
+      return exoticHost;
+    },
+  };
 }
 
 const TRIAD_COLORS = [
