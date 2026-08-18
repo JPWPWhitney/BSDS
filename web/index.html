@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BSDS — Basilisk missions in the browser</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>" />
+  </head>
+  <body class="index-page">
+    <main id="app">
+      <header class="hero">
+        <h1>BSDS</h1>
+        <p class="tagline">Real spacecraft simulations, replayed in your browser.</p>
+        <p class="sub">
+          Every mission below was flown by
+          <a href="https://avslab.github.io/basilisk/" target="_blank" rel="noopener">Basilisk</a>,
+          the open-source astrodynamics framework — recorded at build time, played back here.
+        </p>
+      </header>
+      <section id="scenario-cards" class="cards" aria-busy="true">Loading missions…</section>
+      <footer class="attribution">
+        Powered by <a href="https://github.com/AVSLab/basilisk" target="_blank" rel="noopener">Basilisk</a>
+        — © Autonomous Vehicle Systems Lab, University of Colorado Boulder (ISC License).
+        BSDS is an independent project, not affiliated with the AVS Lab.
+        <a href="https://github.com/JPWPWhitney/BSDS" target="_blank" rel="noopener">Source</a>
+      </footer>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
