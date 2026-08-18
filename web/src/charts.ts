@@ -58,6 +58,28 @@ export function wheelSpeedSeries(run: RunData): Series[] | null {
   return series;
 }
 
+/** Optional (n,1) channels charted when present: name -> display rule.
+ * Channels not listed here are ignored (forward compatibility). */
+export const EXTRA_SCALAR_CHARTS: Record<string, { title: string; unit: string; convert: (v: number) => number }> = {
+  separation: { title: "Separation", unit: "km", convert: (v) => v / 1000 },
+  pointing_error: { title: "Pointing error", unit: "deg", convert: (v) => (v * 180) / Math.PI },
+};
+
+/** One converted series per allowlisted scalar channel present in the run,
+ * in allowlist order. */
+export function extraScalarSeries(run: RunData): { title: string; unit: string; values: Float64Array }[] {
+  const out: { title: string; unit: string; values: Float64Array }[] = [];
+  const n = run.header.n;
+  for (const [name, rule] of Object.entries(EXTRA_SCALAR_CHARTS)) {
+    const ch = run.channel(name);
+    if (!ch || ch.components !== 1) continue;
+    const values = new Float64Array(n);
+    for (let k = 0; k < n; k++) values[k] = rule.convert(ch.at(k, 0));
+    out.push({ title: rule.title, unit: rule.unit, values });
+  }
+  return out;
+}
+
 export function formatTimeTick(tS: number, durationS: number): string {
   if (durationS < 3 * 3600) {
     return `${Math.round(tS / 60)}m`;
@@ -249,6 +271,21 @@ export function buildCharts(container: HTMLElement, run: RunData, timeline: Time
           color: SERIES[c],
         })),
         legend: true,
+      },
+      time,
+      timeline,
+    );
+    container.appendChild(chart.el);
+    disposers.push(chart.dispose);
+  }
+
+  for (const extra of extraScalarSeries(run)) {
+    const chart = buildChart(
+      {
+        title: extra.title,
+        unit: extra.unit,
+        series: [{ name: extra.title, values: extra.values, color: SERIES[0] }],
+        legend: false,
       },
       time,
       timeline,

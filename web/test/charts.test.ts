@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { altitudeSeries, formatTimeTick, wheelSpeedSeries } from "../src/charts";
+import { altitudeSeries, extraScalarSeries, formatTimeTick, wheelSpeedSeries } from "../src/charts";
 import { decodeRun, type DecodedChannel, type RunData } from "../src/bsd1";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -78,6 +78,39 @@ describe("wheelSpeedSeries", () => {
       expect(series[c].values[0]).toBeCloseTo(30 * (c + 1), 10);
       expect(series[c].unit).toBe("rpm");
     }
+  });
+});
+
+describe("extraScalarSeries", () => {
+  it("is empty when no allowlisted channel exists", () => {
+    expect(extraScalarSeries(fixtureRun())).toEqual([]);
+  });
+
+  it("converts separation m->km and pointing_error rad->deg", () => {
+    const run = fixtureRun();
+    const n = run.header.n;
+    const sep = new Float64Array(n).fill(12_500);
+    const perr = new Float64Array(n).fill(Math.PI / 2);
+    const patched = withChannel(withChannel(run, "separation", 1, sep), "pointing_error", 1, perr);
+    const extras = extraScalarSeries(patched);
+    expect(extras.map((e) => [e.title, e.unit])).toEqual([
+      ["Separation", "km"],
+      ["Pointing error", "deg"],
+    ]);
+    expect(extras[0].values[0]).toBeCloseTo(12.5, 12);
+    expect(extras[1].values[0]).toBeCloseTo(90, 12);
+  });
+
+  it("ignores channels outside the allowlist and non-scalar shapes", () => {
+    const run = fixtureRun();
+    const n = run.header.n;
+    const patched = withChannel(
+      withChannel(run, "mystery_channel", 1, new Float64Array(n)),
+      "separation",
+      3, // wrong shape: allowlist only charts (n,1)
+      new Float64Array(3 * n),
+    );
+    expect(extraScalarSeries(patched)).toEqual([]);
   });
 });
 

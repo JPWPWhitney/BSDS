@@ -29,6 +29,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import { mrpToDcm } from "./attitude";
 import type { RunData } from "./bsd1";
 import { nearestIndex } from "./bsd1";
+import { SERIES } from "./charts";
 import type { Timeline } from "./timeline";
 
 export function createViewer(container: HTMLElement): Viewer {
@@ -103,6 +104,41 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
     }),
   });
 
+  // Optional second spacecraft (rendezvous/formation runs): its own sampled
+  // inertial position and full-orbit path in a distinct palette color, no triad.
+  const r2 = run.channel("r2_BN_N");
+  const hasSecond = r2 !== null && r2.components === 3;
+  if (r2 && hasSecond) {
+    const position2 = new SampledPositionProperty(ReferenceFrame.INERTIAL);
+    position2.setInterpolationOptions({
+      interpolationDegree: 5,
+      interpolationAlgorithm: LagrangePolynomialApproximation,
+    });
+    const positions2: Cartesian3[] = [];
+    for (let k = 0; k < n; k++) {
+      positions2.push(new Cartesian3(r2.at(k, 0), r2.at(k, 1), r2.at(k, 2)));
+    }
+    position2.addSamples(times, positions2);
+    viewer.entities.add({
+      id: "spacecraft-2",
+      availability,
+      position: position2,
+      point: {
+        pixelSize: 9,
+        color: Color.fromCssColorString(SERIES[3]),
+        outlineColor: Color.BLACK,
+        outlineWidth: 1,
+      },
+      path: new PathGraphics({
+        material: Color.fromCssColorString(SERIES[3]).withAlpha(0.7),
+        width: 1.6,
+        leadTime: timeline.durationS,
+        trailTime: timeline.durationS,
+        resolution: Math.max(10, timeline.durationS / 2000),
+      }),
+    });
+  }
+
   // Body-axes triad: dynamic polylines driven by a CallbackProperty so the
   // geometry is per-frame without rebuilds (rebuilding every tick keeps the
   // DataSourceDisplay un-ready, which freezes the Viewer clock).
@@ -161,6 +197,7 @@ export function buildScene(viewer: Viewer, run: RunData, timeline: Timeline): Sc
   return {
     dispose() {
       viewer.entities.removeById("spacecraft");
+      if (hasSecond) viewer.entities.removeById("spacecraft-2");
       for (const ent of triadEntities) viewer.entities.remove(ent);
     },
   };
