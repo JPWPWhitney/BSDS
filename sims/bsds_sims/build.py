@@ -136,8 +136,21 @@ def build_site_data(
             "path": f"{scenario_id}/manifest.json",
         })
 
+    _export_templates(out)
     (out / "index.json").write_text(json.dumps(index, indent=1))
     return index
+
+
+def _export_templates(out: Path) -> None:
+    """Ship scenario sources as Mission Lab templates (spec S2-D7/D8)."""
+    tdir = out / "templates"
+    tdir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for scenario_id, mod in SCENARIOS.items():
+        src = Path(mod.__file__)
+        (tdir / f"{scenario_id}.py").write_text(src.read_text())
+        entries.append({"id": scenario_id, "title": mod.TITLE, "file": f"templates/{scenario_id}.py"})
+    (out / "templates.json").write_text(json.dumps({"schema": 1, "templates": entries}, indent=1))
 
 
 def main(argv: list[str] | None = None) -> int:

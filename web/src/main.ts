@@ -25,6 +25,11 @@ async function boot() {
       a.querySelector("p")!.textContent = s.description;
       container.appendChild(a);
     }
+    const lab = document.createElement("a");
+    lab.className = "card";
+    lab.href = "./lab.html";
+    lab.innerHTML = `<h2>Mission Lab</h2><p>Write your own scenario in real Basilisk Python and fly it in an isolated sandbox.</p><span class="kind">edit &amp; run</span>`;
+    container.appendChild(lab);
   } catch (err) {
     container.innerHTML = `<div class="error-banner">Mission data failed to load: ${String(err)}</div>`;
   }

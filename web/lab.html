@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BSDS Mission Lab</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
+  </head>
+  <body class="player-page lab-page">
+    <div id="layout">
+      <header id="topbar">
+        <a href="./index.html" class="back">← Missions</a>
+        <h1 id="run-title">Mission Lab</h1>
+        <span id="run-status" role="status"></span>
+      </header>
+      <div id="main">
+        <section id="editor-pane">
+          <div id="lab-controls">
+            <select id="template-select" aria-label="Scenario template"></select>
+            <input id="passcode" type="password" placeholder="passcode" autocomplete="off" hidden />
+            <button id="run-btn" disabled>▶ Run</button>
+          </div>
+          <div id="editor"></div>
+          <div id="lab-output" hidden>
+            <h3>Output</h3>
+            <pre id="lab-output-text"></pre>
+          </div>
+        </section>
+        <div id="cesium-container"></div>
+        <aside id="side-rail">
+          <div id="charts-panel"></div>
+          <div id="metrics-panel"></div>
+        </aside>
+      </div>
+      <footer class="attribution">
+        Your code runs in an isolated sandbox (no network, 2 min limit) at full native Basilisk fidelity.
+        Powered by <a href="https://github.com/AVSLab/basilisk" target="_blank" rel="noopener">Basilisk</a>
+        (AVS Lab, CU Boulder — ISC License) · <a href="https://github.com/JPWPWhitney/BSDS" target="_blank" rel="noopener">BSDS source</a>
+      </footer>
+    </div>
+    <script type="module" src="./src/lab.ts"></script>
+  </body>
+</html>

@@ -47,3 +47,15 @@ def test_build_sweep_scenario_downsampled(tmp_path):
     hero_meta = next(r for r in manifest["runs"] if r["id"] == manifest["hero"])
     hero = bsd1.read_run(out / "drag_deorbit" / hero_meta["file"])
     assert all(ch["dtype"] == "f32" for ch in hero.header["channels"])
+
+
+def test_build_exports_lab_templates(tmp_path):
+    import json as _json
+
+    out = tmp_path / "data"
+    build_site_data(out, only_scenario="basic_orbit")
+    tj = _json.loads((out / "templates.json").read_text())
+    ids = [t["id"] for t in tj["templates"]]
+    assert "basic_orbit" in ids and "drag_deorbit" in ids
+    src = (out / "templates" / "basic_orbit.py").read_text()
+    assert "def run(" in src and "from bsds_sims.recording import" in src
