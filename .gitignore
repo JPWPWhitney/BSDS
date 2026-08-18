@@ -1,0 +1,18 @@
+# Generated simulation/site data (built in CI; test fixtures are committed under web/test/fixtures)
+data/
+
+# Python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Node / web build
+node_modules/
+web/dist/
+web/public/data/
+
+# Editors / OS
+.vscode/
+.DS_Store

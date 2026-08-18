@@ -1,0 +1,17 @@
+{
+  "name": "BSDS Basilisk Workbench",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install --user 'bsk==2.11.1' matplotlib pandas jupyter && (test -f sims/pyproject.toml && pip install --user -e './sims[test]' || true)",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+      ]
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb"
+  }
+}
