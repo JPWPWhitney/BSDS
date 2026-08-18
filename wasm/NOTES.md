@@ -128,3 +128,32 @@ and `pip install libclang` happens inside 00 via the venv — see script.)
 - GitHub REST API via the proxy requires repo attachment; plain
   `https://github.com/<org>/<repo>/releases/download/...` asset URLs work with
   curl without it.
+
+## Addendum 2026-08-18: drag modules (drag_deorbit closure)
+Added to the wheel so the WASM Lab can run the drag_deorbit template:
+- `Basilisk.simulation.exponentialAtmosphere` (env model; compiles
+  environment/_GeneralModuleFiles/atmosphereBase.cpp + ExponentialAtmosphere/
+  exponentialAtmosphere.cpp on top of ARCH_CORE + C_UTILS)
+- `Basilisk.simulation.dragDynamicEffector` (DYN_CORE + dragEffector/
+  dragDynamicEffector.cpp)
+- messaging payload `AtmoPropsMsgPayload` (PAYLOADS + overlay messaging
+  __init__) — WindMsgPayload stays header-only/opaque (windVelInMsg unused)
+Manifest: generate.py COPY_DIRS +3 dirs, PAYLOADS +1, MODULES +2 (ATMO_SRC /
+DRAG_SRC bundles) -> 24 extension .so (was 21).
+
+Wheel: `bskcore-2.11.1-cp313-cp313-pyemscripten_2025_0_wasm32.whl` now
+**2,089,446 bytes** (was 1,811,973), 12.5 MB unpacked,
+sha256 0b60b6e34263d7a6…  Same filename; web/ fetch path unchanged.
+
+Validation (`scripts/32_validate_drag.sh`, runs the repo's actual
+sims/bsds_sims/scenarios/drag_deorbit.py verbatim on both sides, params
+BC=12.5 kg/m², alt=250 km -> deorbits, ~49 h sim):
+| check | samples | result |
+|---|---|---|
+| deorbit_time_h wasm vs native | – | 49.1 h both, rel err 0.0 (requirement 1e-6) |
+| drag r/v trajectory | 1531 | max rel err 1.5e-11 / 1.6e-11 (target 1e-12 missed: 49 h ≈ 31 revs through an exp() atmosphere amplifies 1-ulp libm differences; deorbit time still exact) |
+| basic_orbit regression | 597 | 7.3e-15 (unchanged) |
+| hohmann regression | 700 | 4.1e-14 (unchanged) |
+| cutils regression | – | 1.3e-15 (unchanged) |
+wasm run wall time (Node): 9.2 s total for the 49 h deorbit (~5,880 RK4 steps).
+web/: drag_deorbit added to WASM_TEMPLATE_IDS (wasmcore.ts) + test flipped.

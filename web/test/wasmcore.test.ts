@@ -9,11 +9,16 @@ describe("filterWasmTemplates", () => {
       { id: "drag_deorbit", title: "D", file: "templates/drag_deorbit.py" },
       { id: "hohmann", title: "H", file: "templates/hohmann.py" },
     ];
-    expect(filterWasmTemplates(all).map((t) => t.id)).toEqual(["basic_orbit", "hohmann"]);
+    expect(filterWasmTemplates(all).map((t) => t.id)).toEqual([
+      "basic_orbit",
+      "drag_deorbit",
+      "hohmann",
+    ]);
   });
   it("supported list stays in sync with intent", () => {
     expect(WASM_TEMPLATE_IDS).toContain("basic_orbit");
-    expect(WASM_TEMPLATE_IDS).not.toContain("drag_deorbit");
+    expect(WASM_TEMPLATE_IDS).toContain("drag_deorbit");
+    expect(WASM_TEMPLATE_IDS).not.toContain("asteroid_arrival");
   });
 });
 
